@@ -1,0 +1,26 @@
+
+<!-- display after adding to cart -->
+<!-- The Modal -->
+<div id="added" class="modal" style="display:block; padding-top:200px;">
+	<!-- Modal content -->
+	<div class="modal-content" style="padding-bottom:50px;">
+		<div>
+			<h1><i class="fas fa-check" style="color:green;"></i> &nbsp; item has been added to your cart</h1>
+		</div>
+		<div class="typography" style="padding-top:100px; padding-bottom:50px;">
+			<h4 style="">Would you like to add more rewards to cart?</h5>
+		</div>
+		<div>
+			<button onclick="this.parentElement.parentElement.parentElement.style.display = 'none';" class="genric-btn success circle" style="font-size:1.5em; text-decoration:none;">Add more items</button>
+			<a href="{{url_for('RewardsSummary')}}" class="genric-btn primary circle arrow" style="font-size:1.5em; margin-left:30px; text-decoration:none;"> Proceed to Checkout<span class="lnr lnr-arrow-right"></span></a>
+		</div>
+	</div>
+</div>
+
+<!--modal end -->
+
+<!-- display after adding to cart _ end -->
+<script>
+window.location.hash = "ER";
+</script>
+<script src="https://kit.fontawesome.com/e566d96b76.js" crossorigin="anonymous"></script> <!-- font awsome script -->
