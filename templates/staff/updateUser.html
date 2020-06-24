@@ -267,7 +267,7 @@
                                             <img src="/static/staff/images/icon/avatar-01.jpg" alt="John Doe" />
                                         </div>
                                         <div class="content">
-                                            <a class="js-acc-btn" href="#">{{ activeuser.get_name() }}</a>
+                                            <a class="js-acc-btn" href="#">{{ activeuser.firstname }}</a>
                                         </div>
                                         <div class="account-dropdown js-dropdown">
                                             <div class="info clearfix">
@@ -279,9 +279,9 @@
 
                                                 <div class="content">
                                                     <h5 class="name">
-                                                        <a>{{ activeuser.get_name() }}</a>
+                                                        <a>{{ activeuser.firstname }}</a>
                                                     </h5>
-                                                    <span class="email">{{ activeuser.get_email() }}</span>
+                                                    <span class="email">{{ activeuser.email }}</span>
                                                 </div>
                                             </div>
 
@@ -348,10 +348,10 @@
 
                     <form method="POST" action="">
                         <div class="form-group" >
-                            {{ render_field(form.firstName, class="form-control",  disabled=True) }}
+                            {{ render_field(form.firstName, class="form-control",  readonly="readonly") }}
                         </div>
                         <div class="form-group">
-                            {{ render_field(form.lastName, class="form-control" , disabled=True) }}
+                            {{ render_field(form.lastName, class="form-control" , readonly="readonly") }}
                         </div>
                         <div class="form-group">
                             {{ render_field(form.email, class="form-control") }}
@@ -361,19 +361,19 @@
                             {{ render_field(form.accounttype, class='form-control') }}
                         </div>
                         <div class="form-group">
-                                {{ render_field(form.phone, class="form-control" , disabled=True) }}
+                                {{ render_field(form.phone, class="form-control" , readonly="readonly") }}
                         </div>
                         <div class="form-inline">
-                            {{ render_field(form.city, class="form-control" , disabled=True) }}
+                            {{ render_field(form.city, class="form-control" , readonly="readonly") }}
                         </div>
                         <div class="form-group">
-                            {{ render_field(form.address, class="form-control" , disabled=True) }}
+                            {{ render_field(form.address, class="form-control" , readonly="readonly") }}
                         </div>
                         <div class="form-group">
-                            {{ render_field(form.unit, class="form-control" , disabled=True) }}
+                            {{ render_field(form.unit, class="form-control" , readonly="readonly") }}
                         </div>
                         <div class="form-group">
-                            {{ render_field(form.postal, class="form-control" , disabled=True) }}
+                            {{ render_field(form.postal, class="form-control" , readonly="readonly") }}
                         </div>
 
 

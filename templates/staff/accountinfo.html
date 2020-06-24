@@ -266,7 +266,7 @@
                                             <img src="static/staff/images/icon/avatar-01.jpg" alt="John Doe" />
                                         </div>
                                         <div class="content">
-                                            <a class="js-acc-btn" href="#">{{ activeuser.get_name() }}</a>
+                                            <a class="js-acc-btn" href="#">{{ activeuser.firstname }}</a>
                                         </div>
                                         <div class="account-dropdown js-dropdown">
                                             <div class="info clearfix">
@@ -278,9 +278,9 @@
 
                                                 <div class="content">
                                                     <h5 class="name">
-                                                        <a>{{ activeuser.get_name() }} </a>
+                                                        <a>{{ activeuser.firstname }} </a>
                                                     </h5>
-                                                    <span class="email">{{ activeuser.get_email() }}</span>
+                                                    <span class="email">{{ activeuser.email }}</span>
                                                 </div>
                                             </div>
 
@@ -338,11 +338,11 @@
                                             </div>
                                             <div class="text">
                                                 {% if count == 0 %}
-                                                <p>There are no user/admin.</p>
+                                                <h2>There are no user/admin.</h2>
                                                 {% elif count == 1 %}
-                                                <p>There is 1 user/admin.</p>
+                                                <h2>There is 1 user/admin.</h2>
                                                 {% else %}
-                                                <p>There are {{ count }} users and admins.</p>
+                                                <h2>There are {{ count }} users and admins.</h2>
                                                 {% endif %}
                                             </div>
 										</div>
@@ -378,52 +378,57 @@
 
                                                     <td>name</td>
                                                     <td>type</td>
-                                                {% if activeuser.get_accounttype() == 'Admin' %}
+
+                                               {% if activeuser.type == 'Admin' %}
 
                                                     <td>update</td>
                                                     <td>delete</td>
-                                                {% endif %}
+                                                <!-- {% endif %} -->
                                                     <td>date</td>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for user in usersList %}
+                                                {% for user in accounts %}
                                                 <tr>
 
                                                     <td>
                                                         <div class="table-data__info">
-                                                            <h6>{{ user.get_name() }}</h6>
+                                                            <h6>{{ user.firstname }}</h6>
                                                             <span>
-                                                                <a>{{ user.get_email() }}</a>
+                                                                <a>{{ user.email }}</a>
                                                             </span>
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        {% if user.get_accounttype() == 'User' %}
+                                                        {% if user.type == 'User' %}
 
-                                                        <span class="role user"> {{ user.get_accounttype() }} </span>
+                                                        <span class="role user"> {{ user.type }} </span>
                                                         {% else %}
-                                                        <span class="role admin"> {{user.get_accounttype() }}</span>
+                                                        <span class="role admin"> {{user.type }}</span>
                                                         {% endif %}
                                                     </td>
 
 
-                                                    {% if activeuser.get_accounttype() == 'Admin' %}
+                                                    {% if activeuser.type == 'Admin' %}
                                                     <td>
-                                                                <a href="/updateUser/{{user.get_userID() }}" class="btn btn-warning"><i class="fas fa-user-edit"></i></a>
-                                                                <a href="/UpdatePassword/{{user.get_userID() }}" class="btn btn-warning"><i class='fas fa-key'></i></a>
+                                                                <a href="/updateUser/{{user.id }}" class="btn btn-warning"><i class="fas fa-user-edit"></i></a>
+                                                                <a href="/UpdatePassword/{{user.id }}" class="btn btn-warning"><i class='fas fa-key'></i></a>
                                                     </td>
-                                                    {% if user.get_userID() != activeuser.get_userID %}
+                                                    {% if user.id != activeuser.id %}
                                                     <td>
 
-                                                        <form action="{{url_for('deleteUser', id=user.get_userID())}}" method="POST">
+                                                        <form action="{{url_for('deleteUser', id=user.id)}}" method="POST">
                                                             <button type="submit" class="btn btndanger"  onclick="return confirm('are you sure u want to delete this user?');"><i class="fas fa-user-slash"></i></button>
                                                          </form>
                                                     </td>
+                                                    {% elif user.id == activeuser.id %}
+                                                    <td>
+
+                                                    </td>
                                                     {% endif %}
                                                     {% endif %}
                                                     <td>
-                                                        {{ user.get_date() }}
+                                                        {{ user.date }}
                                                     </td>
                                                 </tr>
                                                 {% endfor %}

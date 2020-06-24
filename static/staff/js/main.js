@@ -24,15 +24,11 @@ function productFilter() {
   filter = input.value.toUpperCase();
   table = document.getElementById("products");
   tr = table.getElementsByTagName("tr");
-  console.log(tr)
   for (i = 0; i < tr.length; i++) {
-    td = tr[i].getElementsByTagName("td")[1];
-    console.log(td)
+    td = tr[i].getElementsByTagName("td")[0];
     if (td) {
       txtValue = td.textContent || td.innerText;
-      console.log(txtValue)
       if (txtValue.toUpperCase().indexOf(filter) > -1) {
-        console.log(txtValue.toUpperCase().indexOf(filter) > -1)
         tr[i].style.display = "";
       } else {
         tr[i].style.display = "none";

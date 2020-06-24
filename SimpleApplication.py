@@ -8,11 +8,22 @@ import os  # upload file
 
 from flask import Flask, render_template, request, redirect, url_for, flash, session, Markup
 
-from Forms import CreateUserForm, UpdateForm, changepassword, userchangepassword,Userchangeinfo, userchangeinfo, CreateProductForm, \
-    RewardsForm, quantityForm, Refund, UpdateCart, AddSupplierForm, AddOrder, OrderStatus, CreditCard
+from Forms import CreateUserForm, UpdateForm, changepassword, userchangepassword, userchangeinfo, CreateProductForm, \
+    RewardsForm, quantityForm, Refund, UpdateCart, AddSupplierForm, AddOrder, OrderStatus, CreditCard, LoginForm
 from RewardsClass import u1, u2
+import MySQLdb.cursors
+from flask_mysqldb import MySQL
 
 app = Flask(__name__)
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'Keegan'
+app.config['MYSQL_PASSWORD'] = '96259519'
+app.config['MYSQL_DB'] = 'sportsu'
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+mysql = MySQL(app)
+
+app.config['RECAPTCHA_PUBLIC_KEY'] ='6LcSEagZAAAAAOR9ygpzgvdgMphdRW-uj7mkVjf2'
+app.config['RECAPTCHA_PRIVATE_KEY'] = '6LcSEagZAAAAACKWVPGBDwM32cnkfACvH3o8Zdsm'
 app.config["IMAGE_UPLOADS"] = "static\img\RewardsPicUploads"
 app.config["PRODUCT_IMAGE_UPLOADS"] = "static\img\product"
 app.secret_key = "12345"
@@ -25,16 +36,18 @@ def home():
 
 @app.route("/staff-home")
 def staffhome():
-    userDict1 = {}
-    db = shelve.open('user.db', 'r')
-    userDict1 = db['Users']
-    activeuser = userDict1.get(session.get('loginUser'))
+    if 'loggedin' in session:
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * From accounts WHERE id = %s', (session['loginid'],))
+        user = cursor.fetchone()
 
-    return render_template("staff/index.html", activeuser=activeuser)
+        return render_template("staff/index.html", activeuser=user)
+    return redirect(url_for('login'))
 
 
 @app.route('/staff-addproduct', methods=['GET', 'POST'])
 def staffaddprod():
+    cur = mysql.connection.cursor()
     userDict1 = {}
     u = shelve.open('user.db', 'r')
     userDict1 = u['Users']
@@ -52,28 +65,26 @@ def staffaddprod():
             image = request.files["image"]
             image.save(os.path.join(app.config["PRODUCT_IMAGE_UPLOADS"], image.filename))
 
-        product = Product.Product(createProductForm.Name.data,
-                                  createProductForm.Brand.data,
-                                  createProductForm.Category.data,
-                                  createProductForm.RetailPrice.data,
-                                  createProductForm.Quantity.data,
-                                  image.filename)
+        productdetails = (createProductForm.Name.data,
+                     createProductForm.Brand.data,
+                     createProductForm.Category.data,
+                     createProductForm.RetailPrice.data,
+                     createProductForm.Quantity.data,
+                     image.filename,
+                     createProductForm.ListPrice.data,
+                     "Active",
+                     createProductForm.Member.data,
+                     createProductForm.Sale.data,
+                     createProductForm.SalePrice.data,
+                     createProductForm.SaleStartDate.data,
+                     createProductForm.SaleEndDate.data)
 
-        product.set_memberOnly(createProductForm.Member.data)
-        if createProductForm.Sale.data:
-            product.set_sale_status(createProductForm.Sale.data)
-            product.set_sale_start_date(createProductForm.SaleStartDate.data)
-            product.set_sale_end_date(createProductForm.SaleEndDate.data)
+        print(productdetails)
+        
+        sql = 'Insert INTO product_table VALUES(NULL,%s, %s, %s, %s,%s, %s, %s, %s, %s, %s, %s, %s ,%s)'
+        cur.execute(sql,productdetails)
+        mysql.connection.commit()
 
-        if createProductForm.ListPrice.data != '':
-            product.set_ListPrice(createProductForm.ListPrice.data)
-
-        productsDict[product.get_productID()] = product
-        db['products'] = productsDict
-        product = productsDict[product.get_productID()]
-        print(product, "was added to database")
-        flash("Added", "success")
-        db.close()
         return redirect(url_for('staffprod'))
     else:
         print("Failed adding to DB")
@@ -83,12 +94,16 @@ def staffaddprod():
 
 @app.route('/staff-updateproduct/<int:id>/', methods=['GET', 'POST'])
 def staffupdateprod(id):
+    cur = mysql.connection.cursor()
+    sql = "SELECT * FROM product_table WHERE ProductID = %s"
+    cur.execute(sql, (id,))
+    pd = cur.fetchone()
     userDict1 = {}
     u = shelve.open('user.db', 'r')
     userDict1 = u['Users']
     activeuser = userDict1.get(session.get('loginUser'))
     updateProductForm = CreateProductForm(request.form)
-    if request.method == 'POST' and updateProductForm.validate():
+    if request.method == 'POST':
         productsdict = {}
         db = shelve.open('products.db', 'w')
         productsdict = db['products']
@@ -96,28 +111,29 @@ def staffupdateprod(id):
         image_name = ""
         if request.files:
             image = request.files["image"]
-            image_name = productsdict.get(id).get_image()
+            image_name = pd["image"]
 
             image_name = image.filename
             image.save(os.path.join(app.config["PRODUCT_IMAGE_UPLOADS"], image_name))
-
+        productdetails = (updateProductForm.Name.data,
+                          updateProductForm.Brand.data,
+                          updateProductForm.Category.data,
+                          updateProductForm.RetailPrice.data,
+                          updateProductForm.ListPrice.data,
+                          updateProductForm.Quantity.data,
+                          image.filename,
+                          updateProductForm.Sale.data,
+                          updateProductForm.SalePrice.data,
+                          updateProductForm.SaleStartDate.data,
+                          updateProductForm.SaleEndDate.data,
+                          updateProductForm.Member.data,
+                          id)
         # upload img - end
-        product = productsdict.get(id)
-        product.set_name(updateProductForm.Name.data)
-        product.set_brand(updateProductForm.Brand.data)
-        product.set_category(updateProductForm.Category.data)
-        product.set_retailprice(updateProductForm.RetailPrice.data)
-        product.set_ListPrice(updateProductForm.ListPrice.data)
-        product.set_quantity(updateProductForm.Quantity.data)
-        product.set_image(image_name)
-        product.set_sale_price(updateProductForm.SalePrice.data)
-        product.set_memberOnly(updateProductForm.Member.data)
-        if updateProductForm.Sale.data:
-            product.set_sale_status(updateProductForm.Sale.data)
-            product.set_sale_start_date(updateProductForm.SaleStartDate.data)
-            product.set_sale_end_date(updateProductForm.SaleEndDate.data)
-        db['products'] = productsdict
-        db.close()
+        print(updateProductForm.RetailPrice.data,'retail price')
+        sql_update = "UPDATE product_table " \
+                     "SET ProductName =%s, ProductBrand=%s, ProductCategory =%s,RetailPrice=%s, ListPrice=%s,Quantity =%s, image =%s,Sale= %s,SalePrice=%s,SaleStartDate=%s,SaleEndDate=%s,MemberOnly=%s WHERE ProductID = %s"
+        cur.execute(sql_update,productdetails)
+        mysql.connection.commit()
 
         return redirect(url_for('staffprod'))
     else:
@@ -126,39 +142,46 @@ def staffupdateprod(id):
         productsDict = db['products']
         db.close()
 
+
+
+        print(pd)
+        print(productsDict)
         product = productsDict.get(id)
 
-        updateProductForm.Name.data = product.get_productName()
-        updateProductForm.Brand.data = product.get_productBrand()
-        updateProductForm.Category.data = product.get_category()
-        updateProductForm.RetailPrice.data = product.get_retailprice()
-        updateProductForm.ListPrice.data = product.get_ListPrice()
-        updateProductForm.Quantity.data = product.get_quantity()
-        image = product.get_image()
-        updateProductForm.Sale.data = product.get_sale_status()
-        updateProductForm.SalePrice.data = product.get_sale_price()
-        updateProductForm.SaleStartDate.data = product.get_sale_Start_date()
-        updateProductForm.SaleEndDate.data = product.get_sale_End_date()
-        updateProductForm.Member.data = product.get_memberOnly()
+        updateProductForm.Name.data = pd["ProductName"]
+        updateProductForm.Brand.data = pd["ProductBrand"]
+        updateProductForm.Category.data = pd["ProductCategory"]
+        updateProductForm.RetailPrice.data = pd["RetailPrice"]
+        updateProductForm.ListPrice.data = pd["ListPrice"]
+        updateProductForm.Quantity.data = pd["Quantity"]
+        image = pd["image"]
+        updateProductForm.Sale.data = pd["Sale"]
+        updateProductForm.SalePrice.data = pd["SalePrice"]
+        updateProductForm.SaleStartDate.data = pd["SaleStartDate"]
+        updateProductForm.SaleEndDate.data = pd["SaleEndDate"]
+        updateProductForm.Member.data = pd["MemberOnly"]
         print(product)
 
         return render_template('staff/product-update.html', form=updateProductForm, image=image, activeuser=activeuser)
 
 
-@app.route('/deleteProduct/<int:id>', methods=['POST'])
-def deleteProduct(id):
+@app.route('/ProductStatus/<int:id>', methods=['POST'])
+def ProductStatus(id):
     productsDict = {}
 
     db = shelve.open('products.db', 'w')
     productsDict = db['products']
-
-    product = productsDict.get(id)
-    current = product.get_status()
-    if current == "Active":
-        product.set_status("Inactive")
+    cur = mysql.connection.cursor()
+    sql = "SELECT Status FROM product_table WHERE ProductID = %s"
+    cur.execute(sql, (id,))
+    current = cur.fetchone()
+    print(current)
+    if current['Status'] == "Active":
+        cur.execute('UPDATE product_table SET Status = "Inactive" WHERE ProductID = %s',(id,))
     else:
-        product.set_status("Active")
+        cur.execute('UPDATE product_table SET Status = "Active" WHERE ProductID = %s',(id,))
 
+    mysql.connection.commit()
     db['products'] = productsDict
     db.close()
 
@@ -168,26 +191,18 @@ def deleteProduct(id):
 
 @app.route('/staff-product')
 def staffprod():
-    productsDict = {}
-    userDict1 = {}
-    u = shelve.open('user.db', 'r')
-    userDict1 = u['Users']
-    activeuser = userDict1.get(session.get('loginUser'))
-    db = shelve.open('products.db', 'c')
+    cur = mysql.connection.cursor()
+    cur.execute('SELECT * FROM product_table')
+    products = cur.fetchall()
 
-    print(db)
-    try:
-        productsDict = db['products']
-    except:
-        print("ERROR")
-    db.close()
+    if 'loggedin' in session:
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * From accounts WHERE id = %s', (session['loginid'],))
+        user = cursor.fetchone()
 
-    productsList = []
-    for key in productsDict:
-        product = productsDict.get(key)
-        productsList.append(product)
-    return render_template("staff/product.html", productsList=productsList, count=len(productsList),
-                           activeuser=activeuser)
+
+    return render_template("staff/product.html", products=products, count=cur.rowcount,
+                           activeuser=user)
     """
     usersDict = {}
     db = shelve.open('storage.db', 'r')
@@ -201,6 +216,7 @@ def staffprod():
     return render_template('retrieveUsers.html',
                            usersList=usersList, count=len(usersList))
     """
+
 
 
 @app.route("/staff-fullInv")
@@ -756,133 +772,153 @@ def staffreport():
 
 @app.route("/staff-actinfo")
 def staffactinfo():
+    '''
     userDict1 = {}
     db = shelve.open('user.db', 'r')
     userDict1 = db['Users']
     activeuser = userDict1.get(session.get('loginUser'))
-    print(activeuser)
-    usersList = []
-    usersDict = {}
-    db = shelve.open('user.db', 'r')
-    usersDict = db['Users']
-    db.close()
-    for key in usersDict:
-        user = usersDict.get(key)
-        usersList.append(user)
-    return render_template('staff/accountinfo.html',
-                           usersList=usersList, count=len(usersList), activeuser=activeuser,
-                           loginUser=session.get('loginUser'))
+    '''
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session['loginid'],))
+    user = cursor.fetchone()
+
+    cursors = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursors.execute('Select * FROM accounts')
+    accounts = cursors
+
+
+    return render_template('staff/accountinfo.html', activeuser=user, accounts=accounts,
+                           loginUser=session.get('loginUser'), count=cursors.rowcount)
 
 
 @app.route('/UpdatePassword/<int:id>/', methods=['GET', 'POST'])
 def UpdatePassword(id):
+    '''
     userDict1 = {}
     db = shelve.open('user.db', 'r')
     userDict1 = db['Users']
     activeuser = userDict1.get(session.get('loginUser'))
+    '''
     error = None
     updatePasswordForm = changepassword(request.form)
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    print(session.get('loginUser'))
+    account = cursor.fetchone()
     if request.method == 'POST' and updatePasswordForm.validate():
+        '''
         userDict = {}
         db = shelve.open('user.db', 'w')
         userDict = db['Users']
 
         user = userDict.get(id)
+        '''
 
         if updatePasswordForm.newpassword.data == updatePasswordForm.passwordRepeat.data:
             updatePasswordForm.newpassword.data = updatePasswordForm.newpassword.data
+            '''
             user.set_password(updatePasswordForm.newpassword.data)
             db['Users'] = userDict
             db.close()
+            '''
+            cursorss = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursorss.execute('UPDATE accounts SET password = %s WHERE id = %s',
+                             (updatePasswordForm.newpassword.data, id))
+            mysql.connection.commit()
 
-            return redirect(url_for('staffactinfo', activeuser=activeuser))
+            return redirect(url_for('staffactinfo', activeuser=account))
         else:
             error = 'New password does not match confirm password'
             return render_template('staff/UpdatePassword.html', form=updatePasswordForm, error=error,
-                                   activeuser=activeuser)
+                                   activeuser=account)
 
 
 
     else:
+        '''
         userDict = {}
         db = shelve.open('user.db', 'r')
         userDict = db['Users']
 
         db.close()
         user = userDict.get(id)
+        '''
+        cursors = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursors.execute('SELECT * FROM accounts WHERE id = %s', (id,))
+        user = cursors.fetchone()
 
-        return render_template('staff/UpdatePassword.html', form=updatePasswordForm, activeuser=activeuser)
+        return render_template('staff/UpdatePassword.html', form=updatePasswordForm, activeuser=account)
 
 
 @app.route('/updateUser/<int:id>/', methods=['GET', 'POST'])
 def updateUser(id):
-    updateUserForm = Userchangeinfo(request.form)
-    userDict1 = {}
-    db = shelve.open('user.db', 'r')
-    userDict1 = db['Users']
-    activeuser = userDict1.get(session.get('loginUser'))
+    updateUserForm = userchangeinfo(request.form)
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    print(session.get('loginUser'))
+    account = cursor.fetchone()
+
     if request.method == 'POST' and updateUserForm.validate():
-        userDict = {}
-        db = shelve.open('user.db', 'w')
-        userDict = db['Users']
 
-        user = userDict.get(id)
-        user.set_email(updateUserForm.email.data)
-        user.set_accounttype(updateUserForm.accounttype.data)
-        user.set_firstName(user.get_firstName())
-        user.set_lastName(user.get_lastName())
-        user.set_phone(user.get_phone())
-        user.set_city(user.get_city())
-        user.set_address(user.get_address())
-        user.set_unit(user.get_unit())
-        user.set_postal(user.get_postal())
-        user.set_gender(user.get_gender())
-
-        db['Users'] = userDict
-        db.close()
-
+        cursorss = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursorss.execute('UPDATE accounts SET email = %s,type=%s WHERE id = %s',
+                         (updateUserForm.email.data, updateUserForm.accounttype.data, id))
+        mysql.connection.commit()
         return redirect(url_for('staffactinfo'))
     else:
-        userDict = {}
-        db = shelve.open('user.db', 'r')
-        userDict = db['Users']
-        db.close()
+        cursors = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursors.execute('SELECT * FROM accounts WHERE id = %s', (id,))
+        user = cursors.fetchone()
 
-        user = userDict.get(id)
-        updateUserForm.firstName.data = user.get_firstName()
-        updateUserForm.lastName.data = user.get_lastName()
-        updateUserForm.gender.data = user.get_gender()
-        updateUserForm.email.data = user.get_email()
-        updateUserForm.accounttype.data = user.get_accounttype()
-        updateUserForm.phone.data = user.get_phone()
-        updateUserForm.city.data = user.get_city()
-        updateUserForm.address.data = user.get_address()
-        updateUserForm.unit.data = user.get_unit()
-        updateUserForm.postal.data = user.get_postal()
-
-        return render_template('staff/updateUser.html', form=updateUserForm, activeuser=activeuser)
+        updateUserForm.firstName.data = user['firstname']
+        updateUserForm.lastName.data = user['lastname']
+        updateUserForm.gender.data = user['gender']
+        updateUserForm.email.data = user['email']
+        updateUserForm.phone.data = user['phone']
+        updateUserForm.city.data = user['city']
+        updateUserForm.address.data = user['address']
+        updateUserForm.unit.data = user['unit']
+        updateUserForm.postal.data = user['postal']
+        updateUserForm.accounttype.data = user['type']
+        return render_template('staff/updateUser.html', form=updateUserForm, activeuser=account)
 
 
 @app.route('/deleteUser/<int:id>', methods=['POST'])
 def deleteUser(id):
+    '''
     usersDict = {}
     db = shelve.open('user.db', 'w')
     usersDict = db['Users']
-
     usersDict.pop(id)
 
     db['Users'] = usersDict
     db.close()
+    '''
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    print(session.get('loginUser'))
+    account = cursor.fetchone()
+
+    cursorss = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursorss.execute('DELETE FROM accounts WHERE id = %s',
+                     (id,))
+    mysql.connection.commit()
 
     return redirect(url_for('staffactinfo'))
 
 
 @app.route('/UpdateStaffAccount', methods=['GET', 'POST'])
 def UpdateStaffAccount():
+    ''''
     userDict1 = {}
     db = shelve.open('user.db', 'r')
     userDict1 = db['Users']
     activeuser = userDict1.get(session.get('loginUser'))
+    '''
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    account = cursor.fetchone()
 
     userDict = {}
     db = shelve.open('user.db', 'w')
@@ -892,12 +928,19 @@ def UpdateStaffAccount():
 
     updateAccountForm = userchangeinfo(request.form)
     if request.method == 'POST' and updateAccountForm.validate():
-
-        print(updateAccountForm.firstName.data)
+        print(updateAccountForm.gender.data)
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute(
+            'UPDATE accounts SET firstname = %s, lastname = %s, gender = %s, email = %s, phone = %s, city = %s, address = %s , unit =%s, postal=%s WHERE id = %s',
+            (updateAccountForm.firstName.data, updateAccountForm.lastName.data, updateAccountForm.gender.data,
+             updateAccountForm.email.data, updateAccountForm.phone.data, updateAccountForm.city.data,
+             updateAccountForm.address.data, updateAccountForm.unit.data, updateAccountForm.postal.data, account['id']))
+        mysql.connection.commit()
+        '''
         user.set_firstName(updateAccountForm.firstName.data)
         user.set_lastName(updateAccountForm.lastName.data)
-        user.set_email(updateAccountForm.email.data)
         user.set_gender(updateAccountForm.gender.data)
+        user.set_email(updateAccountForm.email.data)
         user.set_phone(updateAccountForm.phone.data)
         user.set_city(updateAccountForm.city.data)
         user.set_address(updateAccountForm.address.data)
@@ -907,25 +950,28 @@ def UpdateStaffAccount():
         db['Users'] = userDict
 
         db.close()
+        '''
 
         return redirect(url_for('staffhome'))
     else:
+        '''
         userDict = {}
         db = shelve.open('user.db', 'r')
         userDict = db['Users']
         db.close()
+        '''
 
-        updateAccountForm.firstName.data = user.get_firstName()
-        updateAccountForm.lastName.data = user.get_lastName()
-        updateAccountForm.gender.data = user.get_gender()
-        updateAccountForm.email.data = user.get_email()
-        updateAccountForm.phone.data = user.get_phone()
-        updateAccountForm.city.data = user.get_city()
-        updateAccountForm.address.data = user.get_address()
-        updateAccountForm.unit.data = user.get_unit()
-        updateAccountForm.postal.data = user.get_postal()
+        updateAccountForm.firstName.data = account['firstname']
+        updateAccountForm.lastName.data = account['lastname']
+        updateAccountForm.gender.data = account['gender']
+        updateAccountForm.email.data = account['email']
+        updateAccountForm.phone.data = account['phone']
+        updateAccountForm.city.data = account['city']
+        updateAccountForm.address.data = account['address']
+        updateAccountForm.unit.data = account['unit']
+        updateAccountForm.postal.data = account['postal']
 
-    return render_template('staff/UpdateStaffAccount.html', user=user, activeuser=activeuser,
+    return render_template('staff/UpdateStaffAccount.html', user=user, activeuser=account,
                            loginUser=session.get('loginUser'), form=updateAccountForm)
 
 
@@ -935,98 +981,112 @@ def UpdateAccount():
     db = shelve.open('user.db', 'w')
     userDict = db['Users']
     user = userDict.get(session.get('loginUser'))
-    print(user.get_firstName())
-    print(user.get_postal())
-    print(user.get_address())
-    print(user.get_unit())
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session['loginid'],))
+    account = cursor.fetchone()
+    print(account)
 
     updateAccountForm = userchangeinfo(request.form)
     if request.method == 'POST' and updateAccountForm.validate():
-
-        print(updateAccountForm.firstName.data)
-        user.set_firstName(updateAccountForm.firstName.data)
-        user.set_lastName(updateAccountForm.lastName.data)
-        user.set_email(updateAccountForm.email.data)
-        user.set_gender(updateAccountForm.gender.data)
-        user.set_phone(updateAccountForm.phone.data)
-        user.set_city(updateAccountForm.city.data)
-        user.set_address(updateAccountForm.address.data)
-        user.set_unit(updateAccountForm.unit.data)
-        user.set_postal(updateAccountForm.postal.data)
-
-        db['Users'] = userDict
-
-        db.close()
-
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute(
+            'UPDATE accounts SET firstname = %s, lastname = %s, gender = %s, email = %s, phone = %s, city = %s, address = %s , unit =%s, postal=%s WHERE id = %s',
+            (updateAccountForm.firstName.data, updateAccountForm.lastName.data, updateAccountForm.gender.data,
+             updateAccountForm.email.data, updateAccountForm.phone.data, updateAccountForm.city.data,
+             updateAccountForm.address.data, updateAccountForm.unit.data, updateAccountForm.postal.data, account['id']))
+        mysql.connection.commit()
         return redirect(url_for('useraccount'))
     else:
-        userDict = {}
-        db = shelve.open('user.db', 'r')
-        userDict = db['Users']
-        db.close()
-
-        updateAccountForm.firstName.data = user.get_firstName()
-        updateAccountForm.lastName.data = user.get_lastName()
-        updateAccountForm.gender.data = user.get_gender()
-        updateAccountForm.email.data = user.get_email()
-        updateAccountForm.phone.data = user.get_phone()
-        updateAccountForm.city.data = user.get_city()
-        updateAccountForm.address.data = user.get_address()
-        updateAccountForm.unit.data = user.get_unit()
-        updateAccountForm.postal.data = user.get_postal()
-
-    return render_template('UpdateAccount.html', user=user, loginUser=session.get('loginUser'), form=updateAccountForm)
+        updateAccountForm.firstName.data = account['firstname']
+        updateAccountForm.lastName.data = account['lastname']
+        updateAccountForm.gender.data = account['gender']
+        updateAccountForm.email.data = account['email']
+        updateAccountForm.phone.data = account['phone']
+        updateAccountForm.city.data = account['city']
+        updateAccountForm.address.data = account['address']
+        updateAccountForm.unit.data = account['unit']
+        updateAccountForm.postal.data = account['postal']
+    return render_template('UpdateAccount.html', form=updateAccountForm)
 
 
 @app.route('/UpdateStaffPassword', methods=['GET', 'POST'])
 def UpdateStaffPassword():
+    '''
     userDict1 = {}
     db = shelve.open('user.db', 'r')
     userDict1 = db['Users']
     activeuser = userDict1.get(session.get('loginUser'))
+    '''
 
     userDict = {}
     db = shelve.open('user.db', 'w')
     userDict = db['Users']
     user = userDict.get(session.get('loginUser'))
 
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    account = cursor.fetchone()
+
     updateAccountForm = userchangepassword(request.form)
     if request.method == 'POST' and updateAccountForm.validate():
-        if updateAccountForm.oldpassword.data == user.get_password():
+        if updateAccountForm.oldpassword.data == account['password']:
             if updateAccountForm.newpassword.data == updateAccountForm.passwordRepeat.data:
                 updateAccountForm.newpassword.data = updateAccountForm.newpassword.data
+                '''
                 user.set_password(updateAccountForm.newpassword.data)
+                '''
+                cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+                cursor.execute(
+                    'UPDATE accounts SET password = %s WHERE id = %s',
+                    (updateAccountForm.newpassword.data, account['id']))
+                mysql.connection.commit()
+
             else:
                 error = 'New password does not match confirm password'
                 return render_template('staff/UpdateStaffPassword.html', error=error, form=updateAccountForm,
-                                       activeuser=activeuser)
+                                       activeuser=account)
         else:
             error = 'Wrong current password'
             return render_template('staff/UpdateStaffPassword.html', error=error, form=updateAccountForm,
-                                   activeuser=activeuser)
+                                   activeuser=account)
 
         db['Users'] = userDict
 
         db.close()
         return redirect(url_for('staffhome'))
 
-    return render_template('staff/UpdateStaffPassword.html', user=user, activeuser=activeuser,
+    return render_template('staff/UpdateStaffPassword.html', user=user, activeuser=account,
                            loginUser=session.get('loginUser'), form=updateAccountForm)
 
 
 @app.route('/UserUpdatePassword', methods=['GET', 'POST'])
 def UserUpdatePassword():
+    '''
     userDict = {}
     db = shelve.open('user.db', 'w')
     userDict = db['Users']
     user = userDict.get(session.get('loginUser'))
+    '''
+
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    account = cursor.fetchone()
 
     updateAccountForm = userchangepassword(request.form)
     if request.method == 'POST' and updateAccountForm.validate():
-        if updateAccountForm.oldpassword.data == user.get_password():
+        if updateAccountForm.oldpassword.data == account['password']:
             if updateAccountForm.newpassword.data == updateAccountForm.passwordRepeat.data:
                 updateAccountForm.newpassword.data = updateAccountForm.newpassword.data
+                '''
                 user.set_password(updateAccountForm.newpassword.data)
+                '''
+                cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+                cursor.execute(
+                    'UPDATE accounts SET password = %s WHERE id = %s',
+                    (updateAccountForm.newpassword.data, account['id']))
+                mysql.connection.commit()
+
             else:
                 error = 'New password does not match confirm password'
                 return render_template('UserUpdatePassword.html', error=error, form=updateAccountForm)
@@ -1034,26 +1094,34 @@ def UserUpdatePassword():
             error = 'Wrong current password'
             return render_template('UserUpdatePassword.html', error=error, form=updateAccountForm)
 
-        db['Users'] = userDict
-
-        db.close()
         return redirect(url_for('useraccount'))
 
-    return render_template('UserUpdatePassword.html', user=user, loginUser=session.get('loginUser'),
+    return render_template('UserUpdatePassword.html', activeuser=account, loginUser=session.get('loginUser'),
                            form=updateAccountForm)
 
 
 @app.route("/AccountChart")
 def AccountChart():
+    '''
     userDict1 = {}
     db = shelve.open('user.db', 'r')
     userDict1 = db['Users']
     activeuser = userDict1.get(session.get('loginUser'))
+    '''
+    cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute('SELECT * FROM accounts WHERE id = %s', (session.get('loginUser'),))
+    account = cursor.fetchone()
 
+    '''
     db = shelve.open("user.db", "r")
     quanDict = {}
     quanDict = db["Users"]
     db.close()
+    '''
+    cursors = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+    cursors.execute('Select date FROM accounts')
+    accounts = cursors
+    print(accounts)
 
     janlist = []
     feblist = []
@@ -1067,48 +1135,53 @@ def AccountChart():
     octlist = []
     novlist = []
     declist = []
-
+    '''
     for key in quanDict:
         count = quanDict.get(key)
         d = str(count.get_date())
         datesplit = d.split('-')
         print(datesplit)
+    '''
+    for key in accounts:
+        print(key)
+        d = str(key)
+        datesplit = d.split('-')
 
         if datesplit[1] == "01":
-            janlist.append(count)
+            janlist.append(key)
 
         if datesplit[1] == "02":
-            feblist.append(count)
+            feblist.append(key)
 
         if datesplit[1] == "03":
-            marlist.append(count)
+            marlist.append(key)
 
         if datesplit[1] == "04":
-            aprlist.append(count)
+            aprlist.append(key)
 
         if datesplit[1] == "05":
-            maylist.append(count)
+            maylist.append(key)
 
         if datesplit[1] == "06":
-            junlist.append(count)
+            junlist.append(key)
 
         if datesplit[1] == "07":
-            jullist.append(count)
+            jullist.append(key)
 
         if datesplit[1] == "08":
-            auglist.append(count)
+            auglist.append(key)
 
         if datesplit[1] == "09":
-            seplist.append(count)
+            seplist.append(key)
 
         if datesplit[1] == "10":
-            octlist.append(count)
+            octlist.append(key)
 
         if datesplit[1] == "11":
-            novlist.append(count)
+            novlist.append(key)
 
         if datesplit[1] == "12":
-            declist.append(count)
+            declist.append(key)
 
     today = date.today()
     todays = str(today)
@@ -1182,7 +1255,7 @@ def AccountChart():
     bar_labels = labels
     bar_values = values
 
-    return render_template('staff/AccountChart.html', title='User creation- Statistics(Graph)', activeuser=activeuser,
+    return render_template('staff/AccountChart.html', title='User creation- Statistics(Graph)', activeuser=account,
                            max=50, labels=bar_labels, values=bar_values, JanList=janlist, FebList=feblist,
                            MarList=marlist, AprList=aprlist, MayList=maylist, JunList=junlist, JulList=jullist,
                            AugList=auglist, SepList=seplist, OctList=octlist, NovList=novlist, DecList=declist,
@@ -1920,13 +1993,14 @@ def passconfirm():
 
 @app.route('/useraccount')
 def useraccount():
-    userDict = {}
-    db = shelve.open('user.db', 'r')
-    userDict = db['Users']
-    user = userDict.get(session.get('loginUser'))
-    print(user.get_userID())
+    if 'loggedin' in session:
+        cursor = mysql.connection.cursor()
+        cursor.execute('SELECT * From accounts WHERE id = %s',(session['loginid'],))
+        user = cursor.fetchone()
+        print(user)
 
-    return render_template('useraccount.html', user=user, loginUser=session.get('loginUser'))
+        return render_template('useraccount.html', user=user)
+    return redirect(url_for('login'))
 
 
 @app.route('/pastpurchases')
@@ -2481,15 +2555,34 @@ def createUser():
 
 @app.route('/login', methods=['GET', "POST"])
 def login():
+
     session.clear()
     error = None
-    loginform = CreateUserForm(request.form)
+    loginform = LoginForm(request.form)
 
-    if request.method == 'POST':
-        usersDict = {}
-        db = shelve.open('user.db', 'r')
-        usersDict = db['Users']
-        db.close()
+    if request.method == 'POST' and loginform.validate():
+        email = loginform.email.data
+        password = loginform.password.data
+
+        # Check if account exists using MySQL
+        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        cursor.execute('SELECT * FROM accounts WHERE email = %s AND password = %s', (email, password,))
+        # Fetch one record and return result
+        account = cursor.fetchone()
+        if account:
+            session['loggedin'] = True
+            if account['type'] == 'Admin' or account['type']=='Staff':
+                session['loginid'] = account['id']
+                session['email'] = account['email']
+                return redirect(url_for('staffhome'))
+            else:
+                session['loginid'] = account['id']
+                session['email'] = account['email']
+                return redirect(url_for('useraccount'))
+        else:
+            error = 'Invalid login credentials'
+
+        '''
 
         usersList = []
         for key in usersDict:
@@ -2505,7 +2598,11 @@ def login():
                     return redirect(url_for('staffhome'))
             else:
                 error = 'Invalid login credentials'
-
+        '''
+    else:
+        if loginform.recaptcha.errors:
+            loginform.recaptcha.errors.pop()
+            loginform.recaptcha.errors.append('Captcha Invalid')
     return render_template('login.html', form=loginform, error=error)
 
 

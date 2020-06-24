@@ -2,6 +2,12 @@ from wtforms import Form, StringField, RadioField, SelectField, TextAreaField, v
     BooleanField, DateField, DecimalField, FloatField
 from wtforms.widgets import PasswordInput
 from wtforms.validators import DataRequired
+from flask_wtf import RecaptchaField,recaptcha
+
+class LoginForm(Form):
+    email = StringField("Email Address",[validators.Length(min=5,max=50), validators.DataRequired()])
+    password = StringField('Password:',[validators.Length(min=5,max=50), validators.DataRequired()],widget=PasswordInput(hide_value=False))
+    recaptcha = RecaptchaField()
 
 
 class CreateUserForm(Form):
@@ -26,6 +32,7 @@ class CreateUserForm(Form):
     unit = StringField('Unit number:',[validators.data_required()])
 
     postal = IntegerField('Postal code:',validators=[validators.data_required(message='Please Enter Integers only')])
+    recaptcha = RecaptchaField()
 
 
 class UpdateForm(Form):
@@ -50,8 +57,8 @@ class userchangeinfo(Form):
                            [validators.Length(min=1, max=150), validators.DataRequired()])
 
     gender = RadioField('Gender', [validators.DataRequired()],
-                        choices=[('F', 'Female'), ('M', 'Male')],
-                        default='F')
+                        choices=[('female', 'Female'), ('male', 'Male')],
+                        default='female')
     email = StringField("Email Address", [validators.Length(min=5, max=50), validators.DataRequired()])
     accounttype = SelectField('Type', [validators.Optional()],
                               choices=[('Admin', 'Admin'), ('Staff', 'Staff'), ('User', 'User')], default='User')
@@ -63,25 +70,6 @@ class userchangeinfo(Form):
     unit = StringField('Unit number:', [validators.data_required()])
 
     postal = IntegerField('Postal code:',[validators.data_required(message='Please Enter Integers only')])
-
-class Userchangeinfo(Form):
-    firstName = StringField('First Name',
-                            [validators.Length(min=1, max=150), validators.Optional()])
-    lastName = StringField('Last Name',
-                           [validators.Length(min=1, max=150), validators.Optional()])
-
-    gender = RadioField('Gender', [validators.Optional()],
-                        choices=[('F', 'Female'), ('M', 'Male')],
-                        default='F')
-    email = StringField("Email Address", [validators.Length(min=5, max=50), validators.DataRequired()])
-    accounttype = SelectField('Type', [validators.Optional()],
-                              choices=[('Admin', 'Admin'), ('Staff', 'Staff'), ('User', 'User')], default='User')
-    phone = StringField("Phone Number: ")
-    city = SelectField('City:', choices=[('Singapore', 'Singapore')],default='Singapore')
-    address = StringField('Address:', [validators.Optional()])
-    unit = StringField('Unit number:', [validators.Optional()])
-
-    postal = IntegerField('Postal code:',[validators.Optional()])
 
 class checkoutuserchangeinfo(Form):
     firstName = StringField('First Name',
@@ -123,11 +111,11 @@ class CreateProductForm(Form):
                            choices=[('', 'Select'), ('Shoes', 'Shoes')],
                            render_kw=style)
 
-    RetailPrice = IntegerField('Retail Price:', [validators.DataRequired(message='Please Enter Integers only')], render_kw=style)
+    RetailPrice = FloatField('Retail Price:', [validators.DataRequired(message='Please Enter Integers only')], render_kw=style)
 
     Quantity = IntegerField("Quantity:", [validators.DataRequired(message='Please Enter Integers only')], render_kw=style)
 
-    ListPrice = IntegerField('List Price:',[validators.DataRequired(message='Please Enter Integers only')],render_kw=style)
+    ListPrice = FloatField('List Price:',[validators.DataRequired(message='Please Enter Integers only')],render_kw=style)
 
     Sale = BooleanField("Sale:",[validators.Optional()])
 

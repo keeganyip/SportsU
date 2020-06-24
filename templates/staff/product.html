@@ -269,7 +269,7 @@
                                             <img src="static/staff/images/icon/avatar-01.jpg" alt="John Doe" />
                                         </div>
                                         <div class="content">
-                                            <a class="js-acc-btn" href="#">{{ activeuser.get_name() }}</a>
+                                            <a class="js-acc-btn" href="#">{{ activeuser.firstname }}</a>
                                         </div>
                                         <div class="account-dropdown js-dropdown">
                                             <div class="info clearfix">
@@ -281,9 +281,9 @@
 
                                                 <div class="content">
                                                     <h5 class="name">
-                                                        <a>{{ activeuser.get_name() }}</a>
+                                                        <a>{{ activeuser.firstname }}</a>
                                                     </h5>
-                                                    <span class="email">{{ activeuser.get_email() }}</span>
+                                                    <span class="email">{{ activeuser.email }}</span>
                                                 </div>
                                             </div>
 
@@ -351,16 +351,13 @@
                                 <div class="overview__inner">
                                     <div class="pb-5 overview-box clearfix">
                                         <div class="icon">
-                                            <i class="zmdi zmdi-account-o"></i>
+                                            <i class="zmdi zmdi-shopping-cart"></i>
                                         </div>
                                         <div class="text">
                                             {% if count == 0 %}
                                             <h2>No Products</h2>
-                                            {% elif count == 1 %}
-                                            <h2>1 Product</h2>
                                             {% else %}
-                                            <h2>{{ count }}</h2>
-                                            <span>products</span>
+                                            <h2>{{ count }} Products</h2>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -419,38 +416,39 @@
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {% for product in productsList %}
+                                {% for pd in products %}
                                 <tr class="tr-shadow">
-                                    <td>{{product.get_productName()}}</td>
+                                    <td>{{pd["ProductName"]}}</td>
                                     <!--ID,Name,Brand,Category,Date,Status,Price, -->
                                     <td>
-                                        <span class="block-email">{{product.get_productBrand()}}</span>
+                                        <span class="block-email">{{pd["ProductBrand"]}}</span>
                                     </td>
-                                    <td class="desc">{{product.get_category()}}</td>
+                                    <td class="desc">{{pd["ProductCategory"]}}</td>
 
                                     <td>
-                                        {{product.get_quantity()}}
+                                        {{pd["Quantity"]}}
                                     </td>
                                     <td></td>
 
 
-                                    <td>${{product.totalprice()}}</td>
+                                    <td>${{pd["ListPrice"]}}</td>
                                       <td>
-                                        {% if product.get_status() == "Active" %}
-                                        <span class="status--process">{{product.get_status()}}</span>
+                                        {% if pd["Status"] == "Active" %}
+                                        <span class="status--process">{{pd["Status"]}}</span>
                                         {% else %}
-                                        <span class="status--denied">{{product.get_status()}}</span>
+                                        <span class="status--denied">{{pd["Status"]}}</span>
                                         {% endif %}
+
                                     </td>
                                     <td>
                                         <div class="table-data-feature">
                                             <button class="item" data-toggle="tooltip" data-placement="top" title=""
                                                     data-original-title="Edit">
-                                                <a href="/staff-updateproduct/{{product.get_productID()}}"><i
+                                                <a href="/staff-updateproduct/{{pd['ProductID']}}"><i
                                                         class="zmdi zmdi-edit"></i>
                                                 </a>
                                             </button>
-                                            <form action="{{url_for('deleteProduct', id=product.get_productID())}}"
+                                            <form action="{{url_for('ProductStatus', id=pd['ProductID'])}}"
                                                   method="POST">
                                                 <button type="submit" class="item" data-toggle="tooltip"
                                                         data-placement="top" title=""
