@@ -16,7 +16,7 @@ Flask-WTF==0.14.3
 future==0.16.0
 idna==2.7
 itsdangerous==1.1.0
-Jinja2==2.10.3
+Jinja2==2.11.3
 jmespath==0.10.0
 MarkupSafe==1.1.1
 mysqlclient==1.4.6
